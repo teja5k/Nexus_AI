@@ -21,7 +21,11 @@ import {
   History as HistoryIcon,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  LogIn,
+  LogOut,
+  Lock,
+  Mail
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { clsx, type ClassValue } from 'clsx';
@@ -35,7 +39,97 @@ function cn(...inputs: ClassValue[]) {
 
 const DEFAULT_TEMPERATURE = 0.7;
 
+function Login({ onLogin }: { onLogin: () => void }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email === 'admin@nexusai.com' && password === '123456') {
+      localStorage.setItem('isLoggedIn', 'true');
+      onLogin();
+    } else {
+      setError('Invalid email or password');
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA] p-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-[#E9ECEF] p-8"
+      >
+        <div className="flex flex-col items-center mb-8">
+          <div className="p-3 bg-black rounded-xl mb-4">
+            <Layers className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight">Nexus AI</h1>
+          <p className="text-gray-500 text-sm">Sign in to access the aggregator</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
+              <Mail className="w-3 h-3" /> Email Address
+            </label>
+            <input 
+              type="email" 
+              required
+              className="w-full px-4 py-3 rounded-xl border border-[#E9ECEF] focus:outline-none focus:ring-2 focus:ring-black/5 transition-all"
+              placeholder="admin@nexusai.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
+              <Lock className="w-3 h-3" /> Password
+            </label>
+            <input 
+              type="password" 
+              required
+              className="w-full px-4 py-3 rounded-xl border border-[#E9ECEF] focus:outline-none focus:ring-2 focus:ring-black/5 transition-all"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex items-center gap-2 text-red-600 text-xs font-medium bg-red-50 p-3 rounded-lg border border-red-100"
+            >
+              <AlertCircle className="w-4 h-4" />
+              {error}
+            </motion.div>
+          )}
+
+          <button 
+            type="submit"
+            className="w-full bg-black text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-800 transition-all active:scale-[0.98]"
+          >
+            <LogIn className="w-4 h-4" />
+            Sign In
+          </button>
+        </form>
+
+        <div className="mt-8 pt-6 border-t border-[#E9ECEF] text-center">
+          <p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono">
+            Nexus Intelligence Systems v1.0
+          </p>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('isLoggedIn') === 'true');
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<ProviderResponse[]>([]);
@@ -121,6 +215,10 @@ export default function App() {
     }));
   };
 
+  if (!isLoggedIn) {
+    return <Login onLogin={() => setIsLoggedIn(true)} />;
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#F8F9FA]">
       {/* Sidebar */}
@@ -203,6 +301,18 @@ export default function App() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button 
+              onClick={() => {
+                localStorage.removeItem('isLoggedIn');
+                setIsLoggedIn(false);
+              }}
+              className="p-2 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors text-gray-500 flex items-center gap-2 text-xs font-medium"
+              title="Logout"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Logout</span>
+            </button>
+            <div className="w-px h-4 bg-gray-200 mx-1" />
             <button 
               onClick={() => setShowHistory(!showHistory)}
               className={cn(
