@@ -16,22 +16,36 @@ import {
   Zap,
   Layers,
   ChevronRight,
-  Info
+  Info,
+  MessageSquare,
+  History as HistoryIcon,
+  X,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { aggregator } from './services/aggregator';
-import { ProviderConfig, ProviderResponse } from './services/providers/types';
+import { ProviderConfig, ProviderResponse, HistoryItem } from './services/providers/types';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+const DEFAULT_TEMPERATURE = 0.7;
+
 export default function App() {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<ProviderResponse[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>(() => {
+    const saved = localStorage.getItem('ai-aggregator-history');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [showHistory, setShowHistory] = useState(false);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+
   const [configs, setConfigs] = useState<Record<string, ProviderConfig>>({
     'Google Gemini': {
       model: 'gemini-3-flash-preview',
@@ -45,15 +59,41 @@ export default function App() {
     },
   });
 
+  useEffect(() => {
+    localStorage.setItem('ai-aggregator-history', JSON.stringify(history));
+  }, [history]);
+
   const providers = aggregator.getProviders();
 
   const handleRunAll = async () => {
     if (!prompt.trim()) return;
     setLoading(true);
     setResults([]);
+    
+    // Update configs with default temperature before running
+    const currentConfigs = { ...configs };
+    Object.keys(currentConfigs).forEach(key => {
+      currentConfigs[key].temperature = DEFAULT_TEMPERATURE;
+    });
+
     try {
-      const responses = await aggregator.runAll(prompt, configs);
+      const responses = await aggregator.runAll(prompt, currentConfigs);
       setResults(responses);
+
+      // Add to history
+      const newHistoryItem: HistoryItem = {
+        id: crypto.randomUUID(),
+        prompt: prompt,
+        responses: responses.map(r => ({
+          provider: r.providerName,
+          model: r.model,
+          content: r.content,
+          error: r.error
+        })),
+        temperature: DEFAULT_TEMPERATURE,
+        timestamp: new Date().toLocaleString()
+      };
+      setHistory(prev => [newHistoryItem, ...prev]);
     } catch (error) {
       console.error('Aggregator error:', error);
     } finally {
@@ -64,6 +104,11 @@ export default function App() {
   const handleClear = () => {
     setPrompt('');
     setResults([]);
+  };
+
+  const clearHistory = () => {
+    setHistory([]);
+    localStorage.removeItem('ai-aggregator-history');
   };
 
   const updateConfig = (providerName: string, key: keyof ProviderConfig, value: any) => {
@@ -124,22 +169,6 @@ export default function App() {
                 </div>
 
                 <div>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <label className="mono-label">Temperature</label>
-                    <span className="text-[10px] font-mono font-bold">{configs[provider.name]?.temperature}</span>
-                  </div>
-                  <input 
-                    type="range" 
-                    min="0" 
-                    max="1" 
-                    step="0.1"
-                    className="w-full accent-black"
-                    value={configs[provider.name]?.temperature}
-                    onChange={(e) => updateConfig(provider.name, 'temperature', parseFloat(e.target.value))}
-                  />
-                </div>
-
-                <div>
                   <label className="mono-label block mb-1.5">Max Tokens</label>
                   <input 
                     type="number" 
@@ -175,6 +204,21 @@ export default function App() {
           </div>
           <div className="flex items-center gap-3">
             <button 
+              onClick={() => setShowHistory(!showHistory)}
+              className={cn(
+                "p-2 rounded-md transition-colors flex items-center gap-2",
+                showHistory ? "bg-black text-white" : "hover:bg-gray-100 text-gray-500"
+              )}
+              title="Toggle History"
+            >
+              <HistoryIcon className="w-5 h-5" />
+              {history.length > 0 && (
+                <span className="text-[10px] font-bold bg-red-500 text-white w-4 h-4 flex items-center justify-center rounded-full">
+                  {history.length}
+                </span>
+              )}
+            </button>
+            <button 
               onClick={handleClear}
               className="p-2 hover:bg-gray-100 rounded-md transition-colors text-gray-500"
               title="Clear all"
@@ -200,7 +244,111 @@ export default function App() {
         </header>
 
         {/* Scrollable Area */}
-        <div className="flex-1 overflow-y-auto p-8 space-y-8">
+        <div className="flex-1 overflow-y-auto p-8 space-y-8 relative">
+          {/* History Panel Overlay */}
+          <AnimatePresence>
+            {showHistory && (
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="absolute top-0 right-0 w-96 h-full bg-white border-l border-[#E9ECEF] shadow-2xl z-50 flex flex-col"
+              >
+                <div className="p-6 border-b border-[#E9ECEF] flex items-center justify-between bg-gray-50">
+                  <div className="flex items-center gap-2">
+                    <HistoryIcon className="w-4 h-4 text-gray-400" />
+                    <h2 className="font-semibold text-sm">Conversation History</h2>
+                  </div>
+                  <button 
+                    onClick={() => setShowHistory(false)}
+                    className="p-1 hover:bg-gray-200 rounded-full transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {history.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-gray-400 text-center p-8">
+                      <HistoryIcon className="w-8 h-8 opacity-10 mb-2" />
+                      <p className="text-xs">No history yet. Run a query to see it here.</p>
+                    </div>
+                  ) : (
+                    history.map((item) => (
+                      <div 
+                        key={item.id} 
+                        className="border border-[#E9ECEF] rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-all duration-200"
+                      >
+                        <button 
+                          onClick={() => setExpandedHistoryId(expandedHistoryId === item.id ? null : item.id)}
+                          className="w-full p-4 text-left hover:bg-gray-50/50 transition-colors flex items-start justify-between gap-3"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
+                              <p className="text-xs font-semibold text-gray-900 line-clamp-1">{item.prompt}</p>
+                            </div>
+                            <div className="flex items-center gap-3 text-[10px] text-gray-400 font-mono">
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                <span>{item.timestamp}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mt-1">
+                            {expandedHistoryId === item.id ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                          </div>
+                        </button>
+                        
+                        <AnimatePresence>
+                          {expandedHistoryId === item.id && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden border-t border-[#E9ECEF] bg-gray-50/50"
+                            >
+                              <div className="p-4 space-y-4">
+                                {item.responses.map((res, idx) => (
+                                  <div key={idx} className="space-y-1">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">{res.provider}</span>
+                                      <span className="text-[9px] font-mono text-gray-400">{res.model}</span>
+                                    </div>
+                                    <div className="text-xs text-gray-700 bg-white p-3 rounded border border-[#E9ECEF] max-h-40 overflow-y-auto">
+                                      {res.error ? (
+                                        <span className="text-red-500 italic">{res.error}</span>
+                                      ) : (
+                                        <Markdown>{res.content}</Markdown>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {history.length > 0 && (
+                  <div className="p-4 border-t border-[#E9ECEF] bg-gray-50">
+                    <button 
+                      onClick={clearHistory}
+                      className="w-full py-2 text-xs font-semibold text-red-600 hover:bg-red-50 border border-red-100 rounded-md transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Clear History
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Prompt Input */}
           <div className="max-w-4xl mx-auto w-full">
             <div className="relative">

@@ -17,6 +17,19 @@ export interface ProviderConfig {
   maxTokens: number;
 }
 
+export interface HistoryItem {
+  id: string;
+  prompt: string;
+  responses: {
+    provider: string;
+    model: string;
+    content: string;
+    error?: string;
+  }[];
+  temperature: number;
+  timestamp: string;
+}
+
 export interface AIProvider {
   name: string;
   availableModels: string[];
