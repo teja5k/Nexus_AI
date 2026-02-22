@@ -1,0 +1,5 @@
+{
+  "name": "AI Aggregator",
+  "description": "Compare responses from multiple AI models side-by-side in real-time.",
+  "requestFramePermissions": []
+}

@@ -1,11 +1,46 @@
-<div align="center">
+# AI Aggregator
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+A production-ready web application to compare responses from multiple AI providers side-by-side.
 
-  <h1>Built with AI Studio</h2>
+## Features
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+- **Parallel Execution**: Queries multiple models simultaneously for minimal latency.
+- **Side-by-Side Comparison**: View responses in a clean, scannable dashboard.
+- **OOP Architecture**: Modular provider system (Gemini, Groq) for easy extensibility.
+- **Token Tracking**: Monitor usage and costs.
+- **Real-time Latency**: See exactly how long the model takes to respond.
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## Setup
 
-</div>
+1. **Environment Variables**:
+   Create a `.env` file or set the following in your environment:
+   - `GEMINI_API_KEY`: Your Google Gemini API key.
+   - `VITE_GROQ_API_KEY`: Your Groq API key.
+
+2. **Installation**:
+   ```bash
+   npm install
+   ```
+
+3. **Development**:
+   ```bash
+   npm run dev
+   ```
+
+## Architecture
+
+- `src/services/providers/`: Contains the provider logic.
+  - `base.ts`: Abstract base class for all AI providers.
+  - `gemini.ts`: Google Gemini implementation.
+  - `groq.ts`: Groq implementation.
+- `src/services/aggregator.ts`: Orchestrates execution.
+- `src/App.tsx`: Main UI component with sidebar and results dashboard.
+
+## Tech Stack
+
+- **React 19**
+- **TypeScript**
+- **Tailwind CSS**
+- **Motion** (for animations)
+- **Lucide React** (for icons)
+- **Google Generative AI SDK**
