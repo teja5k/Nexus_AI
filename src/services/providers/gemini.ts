@@ -11,17 +11,19 @@ export class GeminiProvider extends BaseProvider {
   ];
 
   get hasApiKey(): boolean {
-    return !!process.env.GEMINI_API_KEY;
+    // For dynamic keys, we check at runtime in complete()
+    return true;
   }
 
   async complete(prompt: string, config: ProviderConfig): Promise<ProviderResponse> {
     const startTime = Date.now();
     try {
-      if (!this.hasApiKey) {
-        throw new Error("Gemini API Key is missing");
+      const apiKey = config.apiKey;
+      if (!apiKey) {
+        throw new Error("Gemini API Key is missing. Please enter it in the configuration sidebar.");
       }
 
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: config.model,
         contents: prompt,

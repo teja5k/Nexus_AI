@@ -98,7 +98,17 @@ export default function App() {
                   <Cpu className="w-4 h-4 text-gray-400" />
                   <h3 className="font-medium text-sm">{provider.name}</h3>
                 </div>
-                {provider.hasApiKey ? (
+                {provider.name === 'Google Gemini' ? (
+                  configs[provider.name]?.apiKey ? (
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">
+                      <CheckCircle2 className="w-3 h-3" /> Key Set
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 uppercase tracking-tighter">
+                      <AlertCircle className="w-3 h-3" /> Key Required
+                    </span>
+                  )
+                ) : provider.hasApiKey ? (
                   <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">
                     <CheckCircle2 className="w-3 h-3" /> Configured
                   </span>
@@ -110,6 +120,19 @@ export default function App() {
               </div>
 
               <div className="space-y-3">
+                {provider.name === 'Google Gemini' && (
+                  <div>
+                    <label className="mono-label block mb-1.5">Gemini API Key</label>
+                    <input 
+                      type="password" 
+                      placeholder="Enter your API key..."
+                      className="w-full text-sm border border-[#E9ECEF] rounded-md p-2 bg-white focus:outline-none focus:ring-1 focus:ring-black"
+                      value={configs[provider.name]?.apiKey || ''}
+                      onChange={(e) => updateConfig(provider.name, 'apiKey', e.target.value)}
+                    />
+                  </div>
+                )}
+
                 <div>
                   <label className="mono-label block mb-1.5">Model</label>
                   <select 
