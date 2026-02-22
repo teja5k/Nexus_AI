@@ -15,7 +15,6 @@ export interface ProviderConfig {
   model: string;
   temperature: number;
   maxTokens: number;
-  apiKey?: string;
 }
 
 export interface AIProvider {

@@ -14,12 +14,10 @@ A production-ready web application to compare responses from multiple AI provide
 
 1. **Environment Variables**:
    Create a `.env` file or set the following in your environment:
+   - `VITE_GOOGLE_API_KEY`: Your Google Gemini API key.
    - `VITE_GROQ_API_KEY`: Your Groq API key.
 
-2. **Gemini API Key**:
-   The Google Gemini API key is entered directly in the application UI.
-
-3. **Installation**:
+2. **Installation**:
    ```bash
    npm install
    ```
