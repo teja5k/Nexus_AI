@@ -15,6 +15,7 @@ export interface ProviderConfig {
   model: string;
   temperature: number;
   maxTokens: number;
+  enabled?: boolean;
 }
 
 export interface HistoryItem {

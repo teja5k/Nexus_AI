@@ -25,7 +25,12 @@ import {
   LogIn,
   LogOut,
   Lock,
-  Mail
+  Mail,
+  Upload,
+  FileText,
+  Settings2,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { clsx, type ClassValue } from 'clsx';
@@ -145,13 +150,20 @@ export default function App() {
       model: 'gemini-3-flash-preview',
       temperature: 0.7,
       maxTokens: 1024,
+      enabled: true,
     },
     'Groq': {
       model: 'llama-3.1-8b-instant',
       temperature: 0.7,
       maxTokens: 1024,
+      enabled: true,
     },
   });
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [extractedText, setExtractedText] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('ai-aggregator-history', JSON.stringify(history));
@@ -159,11 +171,70 @@ export default function App() {
 
   const providers = aggregator.getProviders();
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size exceeds 5MB limit.');
+      return;
+    }
+
+    const allowedTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain'
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      // Fallback check for extensions if type is missing
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (!['pdf', 'docx', 'txt'].includes(ext || '')) {
+        alert('Unsupported file format. Please upload PDF, DOCX, or TXT.');
+        return;
+      }
+    }
+
+    setSelectedFile(file);
+    handleExtractText(file);
+  };
+
+  const handleExtractText = async (file: File) => {
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/extract-text', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to extract text');
+      }
+
+      const data = await response.json();
+      setExtractedText(data.text);
+    } catch (error: any) {
+      alert(error.message);
+      setSelectedFile(null);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleRunAll = async () => {
-    if (!prompt.trim()) return;
+    if (!prompt.trim() && !extractedText) return;
     setLoading(true);
     setResults([]);
     
+    // Combine prompt with extracted text
+    const fullPrompt = extractedText 
+      ? `Context from file (${selectedFile?.name}):\n${extractedText}\n\nUser Prompt: ${prompt}`
+      : prompt;
+
     // Update configs with default temperature before running
     const currentConfigs = { ...configs };
     Object.keys(currentConfigs).forEach(key => {
@@ -171,13 +242,13 @@ export default function App() {
     });
 
     try {
-      const responses = await aggregator.runAll(prompt, currentConfigs);
+      const responses = await aggregator.runAll(fullPrompt, currentConfigs);
       setResults(responses);
 
       // Add to history
       const newHistoryItem: HistoryItem = {
         id: crypto.randomUUID(),
-        prompt: prompt,
+        prompt: prompt || `File: ${selectedFile?.name}`,
         responses: responses.map(r => ({
           provider: r.providerName,
           model: r.model,
@@ -198,6 +269,8 @@ export default function App() {
   const handleClear = () => {
     setPrompt('');
     setResults([]);
+    setSelectedFile(null);
+    setExtractedText('');
   };
 
   const clearHistory = () => {
@@ -234,50 +307,86 @@ export default function App() {
         </div>
 
         <div className="flex-1 p-6 space-y-8">
-          {providers.map((provider) => (
-            <div key={provider.name} className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Cpu className="w-4 h-4 text-gray-400" />
-                  <h3 className="font-medium text-sm">{provider.name}</h3>
-                </div>
-                {provider.hasApiKey ? (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">
-                    <CheckCircle2 className="w-3 h-3" /> Configured
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 uppercase tracking-tighter">
-                    <AlertCircle className="w-3 h-3" /> Key Missing
-                  </span>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="mono-label block mb-1.5">Model</label>
-                  <select 
-                    className="w-full text-sm border border-[#E9ECEF] rounded-md p-2 bg-white focus:outline-none focus:ring-1 focus:ring-black"
-                    value={configs[provider.name]?.model}
-                    onChange={(e) => updateConfig(provider.name, 'model', e.target.value)}
-                  >
-                    {provider.availableModels.map(m => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mono-label block mb-1.5">Max Tokens</label>
-                  <input 
-                    type="number" 
-                    className="w-full text-sm border border-[#E9ECEF] rounded-md p-2 bg-white focus:outline-none focus:ring-1 focus:ring-black"
-                    value={configs[provider.name]?.maxTokens}
-                    onChange={(e) => updateConfig(provider.name, 'maxTokens', parseInt(e.target.value))}
-                  />
-                </div>
-              </div>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Providers</p>
+              <button 
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="flex items-center gap-1 text-[10px] font-bold text-gray-400 hover:text-black transition-colors uppercase tracking-tighter"
+              >
+                <Settings2 className="w-3 h-3" />
+                {showAdvanced ? 'Hide Advanced' : 'Show Advanced'}
+              </button>
             </div>
-          ))}
+
+            {providers.map((provider) => (
+              <div key={provider.name} className="space-y-4 p-4 border border-[#E9ECEF] rounded-xl bg-gray-50/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => updateConfig(provider.name, 'enabled', !configs[provider.name]?.enabled)}
+                      className="transition-colors"
+                    >
+                      {configs[provider.name]?.enabled !== false ? (
+                        <ToggleRight className="w-6 h-6 text-black" />
+                      ) : (
+                        <ToggleLeft className="w-6 h-6 text-gray-300" />
+                      )}
+                    </button>
+                    <h3 className={cn(
+                      "font-medium text-sm transition-opacity",
+                      configs[provider.name]?.enabled === false && "opacity-40"
+                    )}>
+                      {provider.name}
+                    </h3>
+                  </div>
+                  {provider.hasApiKey ? (
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">
+                      <CheckCircle2 className="w-3 h-3" /> Configured
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 uppercase tracking-tighter">
+                      <AlertCircle className="w-3 h-3" /> Key Missing
+                    </span>
+                  )}
+                </div>
+
+                <AnimatePresence>
+                  {showAdvanced && configs[provider.name]?.enabled !== false && (
+                    <motion.div 
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden space-y-3 pt-2 border-t border-[#E9ECEF]"
+                    >
+                      <div>
+                        <label className="mono-label block mb-1.5">Model</label>
+                        <select 
+                          className="w-full text-sm border border-[#E9ECEF] rounded-md p-2 bg-white focus:outline-none focus:ring-1 focus:ring-black"
+                          value={configs[provider.name]?.model}
+                          onChange={(e) => updateConfig(provider.name, 'model', e.target.value)}
+                        >
+                          {provider.availableModels.map(m => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="mono-label block mb-1.5">Max Tokens</label>
+                        <input 
+                          type="number" 
+                          className="w-full text-sm border border-[#E9ECEF] rounded-md p-2 bg-white focus:outline-none focus:ring-1 focus:ring-black"
+                          value={configs[provider.name]?.maxTokens}
+                          onChange={(e) => updateConfig(provider.name, 'maxTokens', parseInt(e.target.value))}
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="p-6 border-t border-[#E9ECEF] bg-gray-50">
@@ -460,23 +569,83 @@ export default function App() {
           </AnimatePresence>
 
           {/* Prompt Input */}
-          <div className="max-w-4xl mx-auto w-full">
-            <div className="relative">
-              <textarea 
-                placeholder="Enter your prompt here..."
-                className="w-full min-h-[120px] p-6 text-lg border border-[#E9ECEF] rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-black/5 resize-none transition-all"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleRunAll();
-                  }
-                }}
-              />
-              <div className="absolute bottom-4 right-4 text-[10px] text-gray-400 font-mono uppercase">
-                Enter to run • Shift + Enter for new line
+          <div className="max-w-4xl mx-auto w-full space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="relative flex-1">
+                <textarea 
+                  placeholder="Enter your prompt here..."
+                  className="w-full min-h-[100px] p-5 text-lg border border-[#E9ECEF] rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-black/5 resize-none transition-all"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleRunAll();
+                    }
+                  }}
+                />
+                <div className="absolute bottom-3 right-4 text-[10px] text-gray-400 font-mono uppercase pointer-events-none">
+                  Enter to run
+                </div>
               </div>
+              
+              <label className={cn(
+                "h-[100px] w-20 flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 cursor-pointer hover:border-black hover:bg-gray-50 transition-all shrink-0",
+                isUploading && "opacity-50 cursor-wait",
+                selectedFile && "border-black bg-gray-50"
+              )}>
+                <input 
+                  type="file" 
+                  className="hidden" 
+                  onChange={handleFileChange}
+                  accept=".pdf,.docx,.txt"
+                  disabled={isUploading}
+                />
+                {isUploading ? (
+                  <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                ) : (
+                  <Upload className={cn("w-5 h-5", selectedFile ? "text-black" : "text-gray-400")} />
+                )}
+                <span className="text-[10px] font-bold uppercase tracking-tighter text-center px-1">
+                  {selectedFile ? 'Change' : 'Upload'}
+                </span>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-3">
+                {selectedFile && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full border border-gray-200">
+                    <FileText className="w-3.5 h-3.5 text-gray-500" />
+                    <span className="text-xs font-medium text-gray-700 max-w-[200px] truncate">
+                      {selectedFile.name}
+                    </span>
+                    <button 
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setExtractedText('');
+                      }}
+                      className="p-0.5 hover:bg-gray-200 rounded-full transition-colors"
+                      title="Remove file"
+                    >
+                      <X className="w-3 h-3 text-gray-500" />
+                    </button>
+                  </div>
+                )}
+                {selectedFile && !isUploading && (
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">
+                    <CheckCircle2 className="w-3 h-3" /> Ready
+                  </div>
+                )}
+              </div>
+
+              <button 
+                onClick={handleClear}
+                className="text-[11px] font-bold uppercase tracking-wider text-gray-400 hover:text-red-600 transition-colors flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Clear All
+              </button>
             </div>
           </div>
 

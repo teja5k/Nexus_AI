@@ -13,11 +13,13 @@ export class AIAggregator {
   }
 
   async runAll(prompt: string, configs: Record<string, ProviderConfig>): Promise<ProviderResponse[]> {
-    const tasks = this.providers.map(async (provider) => {
-      const config = configs[provider.name];
-      if (!config) return null;
-      return provider.complete(prompt, config);
-    });
+    const tasks = this.providers
+      .filter(provider => configs[provider.name]?.enabled !== false)
+      .map(async (provider) => {
+        const config = configs[provider.name];
+        if (!config) return null;
+        return provider.complete(prompt, config);
+      });
 
     const results = await Promise.all(tasks);
     return results.filter((r): r is ProviderResponse => r !== null);
