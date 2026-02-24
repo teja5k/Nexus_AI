@@ -26,8 +26,6 @@ import {
   LogOut,
   Lock,
   Mail,
-  Upload,
-  FileText,
   Settings2,
   ToggleLeft,
   ToggleRight
@@ -160,9 +158,6 @@ export default function App() {
     },
   });
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [extractedText, setExtractedText] = useState<string>('');
-  const [isUploading, setIsUploading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
@@ -171,70 +166,11 @@ export default function App() {
 
   const providers = aggregator.getProviders();
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size exceeds 5MB limit.');
-      return;
-    }
-
-    const allowedTypes = [
-      'application/pdf',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/plain'
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-      // Fallback check for extensions if type is missing
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      if (!['pdf', 'docx', 'txt'].includes(ext || '')) {
-        alert('Unsupported file format. Please upload PDF, DOCX, or TXT.');
-        return;
-      }
-    }
-
-    setSelectedFile(file);
-    handleExtractText(file);
-  };
-
-  const handleExtractText = async (file: File) => {
-    setIsUploading(true);
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await fetch('/api/extract-text', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to extract text');
-      }
-
-      const data = await response.json();
-      setExtractedText(data.text);
-    } catch (error: any) {
-      alert(error.message);
-      setSelectedFile(null);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
   const handleRunAll = async () => {
-    if (!prompt.trim() && !extractedText) return;
+    if (!prompt.trim()) return;
     setLoading(true);
     setResults([]);
     
-    // Combine prompt with extracted text
-    const fullPrompt = extractedText 
-      ? `Context from file (${selectedFile?.name}):\n${extractedText}\n\nUser Prompt: ${prompt}`
-      : prompt;
-
     // Update configs with default temperature before running
     const currentConfigs = { ...configs };
     Object.keys(currentConfigs).forEach(key => {
@@ -242,13 +178,13 @@ export default function App() {
     });
 
     try {
-      const responses = await aggregator.runAll(fullPrompt, currentConfigs);
+      const responses = await aggregator.runAll(prompt, currentConfigs);
       setResults(responses);
 
       // Add to history
       const newHistoryItem: HistoryItem = {
         id: crypto.randomUUID(),
-        prompt: prompt || `File: ${selectedFile?.name}`,
+        prompt: prompt,
         responses: responses.map(r => ({
           provider: r.providerName,
           model: r.model,
@@ -269,8 +205,6 @@ export default function App() {
   const handleClear = () => {
     setPrompt('');
     setResults([]);
-    setSelectedFile(null);
-    setExtractedText('');
   };
 
   const clearHistory = () => {
@@ -570,75 +504,25 @@ export default function App() {
 
           {/* Prompt Input */}
           <div className="max-w-4xl mx-auto w-full space-y-3">
-            <div className="flex items-start gap-3">
-              <div className="relative flex-1">
-                <textarea 
-                  placeholder="Enter your prompt here..."
-                  className="w-full min-h-[100px] p-5 text-lg border border-[#E9ECEF] rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-black/5 resize-none transition-all"
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleRunAll();
-                    }
-                  }}
-                />
-                <div className="absolute bottom-3 right-4 text-[10px] text-gray-400 font-mono uppercase pointer-events-none">
-                  Enter to run
-                </div>
+            <div className="relative">
+              <textarea 
+                placeholder="Enter your prompt here..."
+                className="w-full min-h-[120px] p-6 text-lg border border-[#E9ECEF] rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-black/5 resize-none transition-all"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleRunAll();
+                  }
+                }}
+              />
+              <div className="absolute bottom-4 right-4 text-[10px] text-gray-400 font-mono uppercase">
+                Enter to run • Shift + Enter for new line
               </div>
-              
-              <label className={cn(
-                "h-[100px] w-20 flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 cursor-pointer hover:border-black hover:bg-gray-50 transition-all shrink-0",
-                isUploading && "opacity-50 cursor-wait",
-                selectedFile && "border-black bg-gray-50"
-              )}>
-                <input 
-                  type="file" 
-                  className="hidden" 
-                  onChange={handleFileChange}
-                  accept=".pdf,.docx,.txt"
-                  disabled={isUploading}
-                />
-                {isUploading ? (
-                  <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                ) : (
-                  <Upload className={cn("w-5 h-5", selectedFile ? "text-black" : "text-gray-400")} />
-                )}
-                <span className="text-[10px] font-bold uppercase tracking-tighter text-center px-1">
-                  {selectedFile ? 'Change' : 'Upload'}
-                </span>
-              </label>
             </div>
 
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-3">
-                {selectedFile && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full border border-gray-200">
-                    <FileText className="w-3.5 h-3.5 text-gray-500" />
-                    <span className="text-xs font-medium text-gray-700 max-w-[200px] truncate">
-                      {selectedFile.name}
-                    </span>
-                    <button 
-                      onClick={() => {
-                        setSelectedFile(null);
-                        setExtractedText('');
-                      }}
-                      className="p-0.5 hover:bg-gray-200 rounded-full transition-colors"
-                      title="Remove file"
-                    >
-                      <X className="w-3 h-3 text-gray-500" />
-                    </button>
-                  </div>
-                )}
-                {selectedFile && !isUploading && (
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">
-                    <CheckCircle2 className="w-3 h-3" /> Ready
-                  </div>
-                )}
-              </div>
-
+            <div className="flex items-center justify-end px-1">
               <button 
                 onClick={handleClear}
                 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 hover:text-red-600 transition-colors flex items-center gap-1.5"
