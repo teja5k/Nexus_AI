@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -7,62 +7,73 @@
 }
 
 :root {
-  --bg: #F8F9FA;
-  --ink: #1A1D21;
-  --line: #E9ECEF;
+  --bg: #0A0A0A;
+  --card-bg: #111111;
+  --border: rgba(255, 255, 255, 0.08);
+  --accent: #6366F1;
+  --accent-gradient: linear-gradient(135deg, #6366F1 0%, #A855F7 100%);
 }
 
 body {
   background-color: var(--bg);
-  color: var(--ink);
+  color: #F3F4F6;
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.glass-panel {
+  background: rgba(17, 17, 17, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
 }
 
 .data-card {
-  background: white;
-  border: 1px solid var(--line);
-  transition: all 0.2s ease;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .data-card:hover {
-  border-color: #ADB5BD;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -12px rgba(0, 0, 0, 0.5);
 }
 
 .mono-label {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.6;
+  letter-spacing: 0.1em;
+  color: #9CA3AF;
 }
 
 .markdown-body {
   font-size: 0.95rem;
-  line-height: 1.6;
+  line-height: 1.7;
+  color: #D1D5DB;
 }
 
 .markdown-body p {
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .markdown-body code {
   font-family: var(--font-mono);
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.08);
   padding: 0.2rem 0.4rem;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 0.85em;
-  color: #d63384; /* Classic inline code color or similar */
+  color: #F472B6;
 }
 
 .markdown-body pre {
-  background: #1e1e1e;
-  color: #eaeaea;
-  padding: 1.25rem;
-  border-radius: 8px;
+  background: #000000;
+  color: #E5E7EB;
+  padding: 1.5rem;
+  border-radius: 12px;
   overflow-x: auto;
-  margin: 1.25rem 0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 1.5rem 0;
+  border: 1px solid var(--border);
 }
 
 .markdown-body pre code {
@@ -71,4 +82,23 @@ body {
   border-radius: 0;
   color: inherit;
   font-size: 0.9em;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
