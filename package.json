@@ -17,6 +17,7 @@
     "@vitejs/plugin-react": "^5.0.4",
     "anthropic": "^0.0.0",
     "clsx": "^2.1.1",
+    "dotenv": "^17.3.1",
     "groq-sdk": "^0.37.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",

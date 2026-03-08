@@ -19,10 +19,6 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  LogIn,
-  LogOut,
-  Lock,
-  Mail,
   Settings2,
   ToggleLeft,
   ToggleRight,
@@ -45,93 +41,6 @@ function cn(...inputs: ClassValue[]) {
 
 const DEFAULT_TEMPERATURE = 0.7;
 
-function Login({ onLogin }: { onLogin: () => void }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email === 'admin@nexusai.com' && password === '123456') {
-      localStorage.setItem('isLoggedIn', 'true');
-      onLogin();
-    } else {
-      setError('Invalid email or password');
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-[#050505] p-4 relative overflow-hidden">
-      {/* Background Accents */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/10 blur-[120px] rounded-full" />
-
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full glass-panel rounded-3xl p-10 relative z-10"
-      >
-        <div className="flex flex-col items-center mb-10">
-          <div className="p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mb-6 shadow-lg shadow-indigo-500/20">
-            <Layers className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-white mb-2">NexusAI</h1>
-          <p className="text-gray-400 text-sm">Intelligence Aggregator v1.0</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 flex items-center gap-2 px-1">
-              <Mail className="w-3 h-3" /> Email Address
-            </label>
-            <input 
-              type="email" 
-              required
-              className="w-full bg-white/5 border border-white/10 px-5 py-4 rounded-2xl text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
-              placeholder="admin@nexusai.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 flex items-center gap-2 px-1">
-              <Lock className="w-3 h-3" /> Password
-            </label>
-            <input 
-              type="password" 
-              required
-              className="w-full bg-white/5 border border-white/10 px-5 py-4 rounded-2xl text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          {error && (
-            <motion.div 
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-3 text-red-400 text-xs font-medium bg-red-500/10 p-4 rounded-2xl border border-red-500/20"
-            >
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              {error}
-            </motion.div>
-          )}
-
-          <button 
-            type="submit"
-            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-[0.98] shadow-lg shadow-indigo-600/20"
-          >
-            <LogIn className="w-4 h-4" />
-            Sign In
-          </button>
-        </form>
-      </motion.div>
-    </div>
-  );
-}
-
 interface ChatTurn {
   id: string;
   prompt: string;
@@ -140,14 +49,10 @@ interface ChatTurn {
 }
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('isLoggedIn') === 'true');
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
-  const [history, setHistory] = useState<HistoryItem[]>(() => {
-    const saved = localStorage.getItem('ai-aggregator-history');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
@@ -173,16 +78,29 @@ export default function App() {
 
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  // Load history from localStorage on mount
   useEffect(() => {
-    localStorage.setItem('ai-aggregator-history', JSON.stringify(history));
+    const savedHistory = localStorage.getItem('nexusai_history');
+    if (savedHistory) {
+      try {
+        setHistory(JSON.parse(savedHistory));
+      } catch (err) {
+        console.error('Failed to parse saved history:', err);
+      }
+    }
+  }, []);
+
+  // Save history to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('nexusai_history', JSON.stringify(history));
   }, [history]);
 
-  // Auto-scroll logic
+  // Auto-scroll to bottom when new results arrive or loading state changes
   useEffect(() => {
-    if (!loading && chatTurns.length > 0 && hasSearched) {
-      resultsEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    if (resultsEndRef.current) {
+      resultsEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
-  }, [loading, chatTurns, hasSearched]);
+  }, [chatTurns, loading]);
 
   const providers = aggregator.getProviders();
 
@@ -190,6 +108,7 @@ export default function App() {
     if (!prompt.trim()) return;
     const currentPrompt = prompt;
     setLoading(true);
+    setHasSearched(true);
     setPrompt(''); // Clear input immediately for chat feel
     
     const currentConfigs = { ...configs };
@@ -210,8 +129,9 @@ export default function App() {
       setChatTurns(prev => [...prev, newTurn]);
       setHasSearched(true);
 
+      // Save to local history
       const newHistoryItem: HistoryItem = {
-        id: newTurn.id,
+        id: crypto.randomUUID(),
         prompt: currentPrompt,
         responses: responses.map(r => ({
           provider: r.providerName,
@@ -220,7 +140,7 @@ export default function App() {
           error: r.error
         })),
         temperature: DEFAULT_TEMPERATURE,
-        timestamp: newTurn.timestamp
+        timestamp: new Date().toLocaleString()
       };
       setHistory(prev => [newHistoryItem, ...prev]);
     } catch (error) {
@@ -238,7 +158,11 @@ export default function App() {
 
   const clearHistory = () => {
     setHistory([]);
-    localStorage.removeItem('ai-aggregator-history');
+    localStorage.removeItem('nexusai_history');
+  };
+
+  const deleteHistoryItem = (id: string) => {
+    setHistory(prev => prev.filter(item => item.id !== id));
   };
 
   const updateConfig = (providerName: string, key: keyof ProviderConfig, value: any) => {
@@ -250,10 +174,6 @@ export default function App() {
       }
     }));
   };
-
-  if (!isLoggedIn) {
-    return <Login onLogin={() => setIsLoggedIn(true)} />;
-  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#050505] text-white">
@@ -295,22 +215,30 @@ export default function App() {
                       expandedHistoryId === item.id ? "bg-white/5 border-white/10" : "hover:bg-white/[0.02]"
                     )}
                   >
-                    <button 
-                      onClick={() => setExpandedHistoryId(expandedHistoryId === item.id ? null : item.id)}
-                      className="w-full p-4 text-left flex items-start justify-between gap-3"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium text-gray-300 line-clamp-1 mb-1">{item.prompt}</p>
-                        <div className="flex items-center gap-2 text-[9px] text-gray-500 font-mono">
-                          <Clock className="w-3 h-3" />
-                          <span>{item.timestamp}</span>
+                    <div className="flex items-center pr-2">
+                      <button 
+                        onClick={() => setExpandedHistoryId(expandedHistoryId === item.id ? null : item.id)}
+                        className="flex-1 p-4 text-left flex items-start justify-between gap-3 min-w-0"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-gray-300 line-clamp-1 mb-1">{item.prompt}</p>
+                          <div className="flex items-center gap-2 text-[9px] text-gray-500 font-mono">
+                            <Clock className="w-3 h-3" />
+                            <span>{item.timestamp}</span>
+                          </div>
                         </div>
-                      </div>
-                      <ChevronDown className={cn(
-                        "w-4 h-4 text-gray-600 transition-transform duration-300",
-                        expandedHistoryId === item.id && "rotate-180"
-                      )} />
-                    </button>
+                        <ChevronDown className={cn(
+                          "w-4 h-4 text-gray-600 transition-transform duration-300 shrink-0",
+                          expandedHistoryId === item.id && "rotate-180"
+                        )} />
+                      </button>
+                      <button 
+                        onClick={() => deleteHistoryItem(item.id)}
+                        className="p-2 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
                     
                     <AnimatePresence>
                       {expandedHistoryId === item.id && (
@@ -380,17 +308,6 @@ export default function App() {
               title="Settings"
             >
               <SettingsIcon className="w-5 h-5" />
-            </button>
-
-            <button 
-              onClick={() => {
-                localStorage.removeItem('isLoggedIn');
-                setIsLoggedIn(false);
-              }}
-              className="flex items-center gap-2 px-4 py-2 hover:bg-red-500/10 text-gray-400 hover:text-red-400 rounded-xl transition-all text-xs font-bold uppercase tracking-widest border border-transparent hover:border-red-500/20"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
         </header>
@@ -499,15 +416,15 @@ export default function App() {
                             {turn.responses.map((res, idx) => (
                               <motion.div
                                 key={`${res.providerName}-${idx}`}
-                                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                                initial={{ opacity: 0, y: 40, scale: 0.98 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 transition={{ 
                                   type: "spring",
-                                  damping: 20,
-                                  stiffness: 100,
+                                  damping: 25,
+                                  stiffness: 120,
                                   delay: idx * 0.1 
                                 }}
-                                className="data-card rounded-[2rem] flex flex-col overflow-hidden group"
+                                className="data-card animate-slide-up rounded-[2rem] flex flex-col overflow-hidden group shadow-2xl shadow-black/50"
                               >
                                 <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
                                   <div className="flex items-center gap-4">

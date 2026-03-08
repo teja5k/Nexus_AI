@@ -11,7 +11,7 @@ export class GeminiProvider extends BaseProvider {
   ];
 
   get hasApiKey(): boolean {
-    return !!import.meta.env.VITE_GOOGLE_API_KEY;
+    return !!process.env.GEMINI_API_KEY;
   }
 
   async complete(prompt: string, config: ProviderConfig): Promise<ProviderResponse> {
@@ -21,7 +21,7 @@ export class GeminiProvider extends BaseProvider {
         throw new Error("Gemini API key is not configured.");
       }
 
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GOOGLE_API_KEY! });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       const response = await ai.models.generateContent({
         model: config.model,
         contents: prompt,
