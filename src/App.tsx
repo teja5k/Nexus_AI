@@ -27,13 +27,15 @@ import {
   Settings as SettingsIcon,
   Search,
   ArrowRight,
-  Loader2
+  Loader2,
+  LogIn
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { aggregator } from './services/aggregator';
 import { ProviderConfig, ProviderResponse, HistoryItem } from './services/providers/types';
+import { Login } from './components/Login';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -57,6 +59,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   
   const resultsEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -80,6 +83,9 @@ export default function App() {
 
   // Load history from localStorage on mount
   useEffect(() => {
+    const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    setIsLoggedIn(loggedIn);
+
     const savedHistory = localStorage.getItem('nexusai_history');
     if (savedHistory) {
       try {
@@ -174,6 +180,27 @@ export default function App() {
       }
     }));
   };
+
+  const handleLogin = () => {
+    setIsLoggedIn(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('isLoggedIn');
+    setIsLoggedIn(false);
+  };
+
+  if (isLoggedIn === null) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return <Login onLogin={handleLogin} />;
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#050505] text-white">
@@ -308,6 +335,14 @@ export default function App() {
               title="Settings"
             >
               <SettingsIcon className="w-5 h-5" />
+            </button>
+
+            <button 
+              onClick={handleLogout}
+              className="p-2.5 hover:bg-red-500/10 rounded-xl text-gray-400 hover:text-red-400 transition-all active:scale-95"
+              title="Logout"
+            >
+              <LogIn className="w-5 h-5 rotate-180" />
             </button>
           </div>
         </header>
